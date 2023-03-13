@@ -1,0 +1,72 @@
+name: Build & Deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+  packages: write
+
+concurrency:
+  group: "fremont-cluster"
+
+jobs:
+  package:
+    uses: Chia-Network/actions/.github/workflows/docker-build.yaml@main
+
+  deploy:
+    needs:
+      - package
+    runs-on: [k8s-internal]
+    container:
+      image: registry.gitlab.com/cmmarslender/kubectl-helm:v3.10.0
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Vault Login
+        uses: Chia-Network/actions/vault/login@main
+        with:
+          vault_url: ${{ secrets.VAULT_URL }}
+          role_name: github
+
+      - name: Get secrets from vault
+        uses: hashicorp/vault-action@v2
+        with:
+          url: ${{ secrets.VAULT_URL }}
+          token: ${{ env.VAULT_TOKEN }}
+          secrets: |
+            secret/data/fmt/k8s/ghcr_image_pull username | IMAGE_PULL_USERNAME;
+            secret/data/fmt/k8s/ghcr_image_pull password | IMAGE_PULL_PASSWORD;
+            secret/data/fmt/k8s/fremont-baremetal api_server_url | K8S_API_SERVER_URL;
+            secret/data/github_users/chiaautomation/actions-exporter token | ACTIONS_EXPORTER_GITHUB_TOKEN;
+
+      - name: Login to k8s cluster
+        uses: Chia-Network/actions/vault/k8s-login@main
+        with:
+          vault_url: ${{ secrets.VAULT_URL }}
+          vault_token: ${{ env.VAULT_TOKEN }}
+          backend_name: fremont-baremetal
+          role_name: github-actions
+          cluster_url: ${{ env.K8S_API_SERVER_URL }}
+
+      - uses: Chia-Network/actions/k8s/image-pull-secret@main
+        with:
+          secret_name: actions-exporter-image-pull
+          namespace: actions-exporter
+          username: ${{ env.IMAGE_PULL_USERNAME }}
+          password: ${{ env.IMAGE_PULL_PASSWORD }}
+          docker_server: "ghcr.io"
+
+      - uses: Chia-Network/actions/helm/deploy@main
+        env:
+          DOCKER_TAG: ${{ github.sha }}
+        with:
+          namespace: actions-exporter
+          app_name: "actions-exporter"
+          helm_chart_repo: "https://chia-network.github.io/helm-charts"
+          helm_chart: "generic"
+          helm_values: "./k8s/values.yaml"
