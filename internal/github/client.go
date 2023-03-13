@@ -70,6 +70,7 @@ func ListRepositoriesByOrg(org string) ([]*github.Repository, error) {
 	return repos, nil
 }
 
+// ListRepositoryWorkflows gets all workflows for a GitHub repository
 func ListRepositoryWorkflows(owner, repo string) ([]*github.Workflow, error) {
 	// Chech cache
 	var workflows []*github.Workflow

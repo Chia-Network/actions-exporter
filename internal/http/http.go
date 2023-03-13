@@ -56,5 +56,8 @@ func (s *Server) StartServer() error {
 // healthcheck an unprotected endpoint that just reports an http 200 if the server is still responding to requests
 func healthcheck(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("ok"))
+	_, err := w.Write([]byte("ok"))
+	if err != nil {
+		log.Errorf("failed to write ok response for healthz endpoint: %s", err.Error())
+	}
 }

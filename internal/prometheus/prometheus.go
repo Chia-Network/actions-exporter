@@ -32,5 +32,4 @@ func (c *Collector) Collect(ch chan<- prometheus.Metric) {
 	for _, r := range t {
 		ch <- prometheus.MustNewConstMetric(c.orgWorkflowState, prometheus.GaugeValue, 1.0, r.RepoOwner, r.RepoName, r.WorkflowName, r.WorkflowState)
 	}
-	return
 }
