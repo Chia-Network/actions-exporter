@@ -1,0 +1,43 @@
+name: Run trunk
+
+on:
+  workflow_dispatch:
+  schedule:
+  # Daily at noon
+  - cron: '0 12 * * *'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  run:
+    name: Run github-settings
+    runs-on: [k8s-internal]
+    container: golang:1
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Vault Login
+        uses: Chia-Network/actions/vault/login@main
+        with:
+          vault_url: ${{ secrets.VAULT_URL }}
+          role_name: github
+
+      - name: Get secrets from vault
+        uses: hashicorp/vault-action@v2
+        with:
+          url: ${{ secrets.VAULT_URL }}
+          token: ${{ env.VAULT_TOKEN }}
+          secrets: |
+            secret/data/github_users/chiaautomation/github-settings username | GH_USER;
+            secret/data/github_users/chiaautomation/github-settings password | GH_TOKEN;
+
+      - name: Run github-settings
+        run: |
+          make build
+          ./bin/github-settings --config="./config.yml"
