@@ -1,6 +1,6 @@
 module github.com/chia-network/actions-exporter
 
-go 1.18
+go 1.20
 
 require (
 	github.com/google/go-github/v47 v47.0.0
