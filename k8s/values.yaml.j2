@@ -1,0 +1,28 @@
+image:
+  repository: ghcr.io/chia-network/actions-exporter
+  tag: "{{ DOCKER_TAG }}"
+
+imagePullSecrets:
+  - name: actions-exporter-image-pull
+
+deployment:
+  containerPort: 8080
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: http
+  readinessProbe:
+    httpGet:
+      path: /healthz
+      port: http
+
+service:
+  enabled: true
+  additionalLabels:
+    prometheus: application-metrics
+    application: actions-exporter
+  port: 8080
+
+secretEnvironment:
+  ACTIONS_EXPORTER_GITHUB_ORG: "chia-network"
+  ACTIONS_EXPORTER_GITHUB_TOKEN: "{{ ACTIONS_EXPORTER_GITHUB_TOKEN }}"
