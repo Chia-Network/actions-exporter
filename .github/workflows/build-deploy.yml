@@ -23,7 +23,7 @@ jobs:
   deploy:
     needs:
       - package
-    runs-on: [k8s-internal]
+    runs-on: [k8s-internal-fmt]
     container:
       image: registry.gitlab.com/cmmarslender/kubectl-helm:v3
     steps:
