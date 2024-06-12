@@ -7,6 +7,7 @@ imagePullSecrets:
 
 deployment:
   containerPort: 8080
+  containerPortName: metrics
   livenessProbe:
     httpGet:
       path: /healthz
