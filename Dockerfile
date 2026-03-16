@@ -1,11 +1,11 @@
-FROM golang:alpine as builder
+FROM golang:1 AS builder
 
 COPY . /app
 WORKDIR /app
-RUN apk add build-base
 RUN make build
 
-FROM alpine:latest
+FROM gcr.io/distroless/static-debian13:latest
 
 COPY --from=builder /app/bin/actions-exporter /actions-exporter
+USER nonroot:nonroot
 CMD ["/actions-exporter"]
