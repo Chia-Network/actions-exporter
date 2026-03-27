@@ -29,6 +29,15 @@ func Init(token string) {
 	cash = cache.New(1*time.Hour, 10*time.Minute)
 }
 
+// GetRateLimits calls the GET /rate_limit endpoint, which does not count against the rate limit
+func GetRateLimits() (*github.RateLimits, error) {
+	limits, _, err := client.RateLimits(context.Background())
+	if err != nil {
+		return nil, fmt.Errorf("GetRateLimits returned error: %v", err)
+	}
+	return limits, nil
+}
+
 // ListRepositoriesByOrg gets all repositories in a GitHub organization
 func ListRepositoriesByOrg(org string) ([]*github.Repository, error) {
 	// Chech cache
