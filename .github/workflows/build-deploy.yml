@@ -23,17 +23,17 @@ jobs:
   deploy:
     needs:
       - package
-    runs-on: [k8s-internal-fmt]
+    runs-on: [k8s-public-fmt]
     container:
-      image: registry.gitlab.com/cmmarslender/kubectl-helm:v3
+      image: registry.gitlab.com/cmmarslender/kubectl-helm:v4
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Vault Login
         uses: Chia-Network/actions/vault/login@main
         with:
           vault_url: ${{ secrets.VAULT_URL }}
-          role_name: github
+          role_name: github-actions-exporter
 
       - name: Get secrets from vault
         uses: hashicorp/vault-action@v3
@@ -41,8 +41,6 @@ jobs:
           url: ${{ secrets.VAULT_URL }}
           token: ${{ env.VAULT_TOKEN }}
           secrets: |
-            secret/data/github/ghcr_image_pull username | IMAGE_PULL_USERNAME;
-            secret/data/github/ghcr_image_pull password | IMAGE_PULL_PASSWORD;
             secret/data/fmt/k8s/k8s-fmt api_server_url | K8S_API_SERVER_URL;
             secret/data/github_users/chiaautomation/actions-exporter token | ACTIONS_EXPORTER_GITHUB_TOKEN;
 
@@ -54,14 +52,6 @@ jobs:
           backend_name: k8s-fmt
           role_name: github-actions
           cluster_url: ${{ env.K8S_API_SERVER_URL }}
-
-      - uses: Chia-Network/actions/k8s/image-pull-secret@main
-        with:
-          secret_name: actions-exporter-image-pull
-          namespace: actions-exporter
-          username: ${{ env.IMAGE_PULL_USERNAME }}
-          password: ${{ env.IMAGE_PULL_PASSWORD }}
-          docker_server: "ghcr.io"
 
       - uses: Chia-Network/actions/helm/deploy@main
         env:

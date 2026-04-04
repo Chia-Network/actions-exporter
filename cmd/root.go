@@ -21,8 +21,15 @@ var rootCmd = &cobra.Command{
 	Short: "Prometheus exporter for GitHub Actions",
 
 	Run: func(cmd *cobra.Command, args []string) {
+		org := viper.GetString("github-org")
+		user := viper.GetString("github-user")
+
+		if org == "" && user == "" {
+			log.Fatalln("at least one of --github-org or --github-user must be provided")
+		}
+
 		gh.Init(viper.GetString("github-token"))
-		prometheus.Init(viper.GetString("github-org"))
+		prometheus.Init(org, user)
 
 		m, err := http.NewServer(uint16(viper.GetUint("server-port")))
 		if err != nil {
@@ -41,44 +48,29 @@ func Execute() {
 
 func init() {
 	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: $HOME/.ci-exporter.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: $HOME/.actions-exporter.yaml)")
 	rootCmd.PersistentFlags().Uint16("server-port", 8080, "The port the metrics server binds to. (default: 8080)")
 	rootCmd.PersistentFlags().String("github-token", "", "A GitHub API token")
 	rootCmd.PersistentFlags().String("github-org", "", "A GitHub organization name")
+	rootCmd.PersistentFlags().String("github-user", "", "A GitHub username")
 	rootCmd.PersistentFlags().String("log-level", "info", "How verbose the logs should be. panic, fatal, error, warn, info, debug, trace (default: info)")
 
-	err := viper.BindPFlag("server-port", rootCmd.PersistentFlags().Lookup("server-port"))
-	if err != nil {
-		log.Fatalln(err.Error())
-	}
-
-	err = viper.BindPFlag("github-token", rootCmd.PersistentFlags().Lookup("github-token"))
-	if err != nil {
-		log.Fatalln(err.Error())
-	}
-
-	err = viper.BindPFlag("github-org", rootCmd.PersistentFlags().Lookup("github-org"))
-	if err != nil {
-		log.Fatalln(err.Error())
-	}
-
-	err = viper.BindPFlag("log-level", rootCmd.PersistentFlags().Lookup("log-level"))
-	if err != nil {
-		log.Fatalln(err.Error())
+	for _, flag := range []string{"server-port", "github-token", "github-org", "github-user", "log-level"} {
+		err := viper.BindPFlag(flag, rootCmd.PersistentFlags().Lookup(flag))
+		if err != nil {
+			log.Fatalln(err.Error())
+		}
 	}
 }
 
 // initConfig reads in config file and ENV variables if set.
 func initConfig() {
 	if cfgFile != "" {
-		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
 	} else {
-		// Find home directory.
 		home, err := os.UserHomeDir()
 		cobra.CheckErr(err)
 
-		// Search config in home directory with name ".ci-exporter" (without extension).
 		viper.AddConfigPath(home)
 		viper.SetConfigType("yaml")
 		viper.SetConfigName(".actions-exporter")
@@ -86,9 +78,8 @@ func initConfig() {
 
 	viper.SetEnvPrefix("ACTIONS_EXPORTER")
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
-	viper.AutomaticEnv() // read in environment variables that match
+	viper.AutomaticEnv()
 
-	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
 		log.Printf("Using config file: %s", viper.ConfigFileUsed())
 	}

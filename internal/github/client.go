@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/google/go-github/v50/github"
+	"github.com/google/go-github/v84/github"
 	"github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
@@ -31,7 +31,7 @@ func Init(token string) {
 
 // GetRateLimits calls the GET /rate_limit endpoint, which does not count against the rate limit
 func GetRateLimits() (*github.RateLimits, error) {
-	limits, _, err := client.RateLimits(context.Background())
+	limits, _, err := client.RateLimit.Get(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("GetRateLimits returned error: %v", err)
 	}
@@ -40,7 +40,6 @@ func GetRateLimits() (*github.RateLimits, error) {
 
 // ListRepositoriesByOrg gets all repositories in a GitHub organization
 func ListRepositoriesByOrg(org string) ([]*github.Repository, error) {
-	// Chech cache
 	var repos []*github.Repository
 	if x, found := cash.Get("ListRepositoriesByOrg"); found {
 		var ok bool
@@ -53,7 +52,6 @@ func ListRepositoriesByOrg(org string) ([]*github.Repository, error) {
 
 	var page, perPage int = 1, 100
 	for {
-		// Get page of organization repos
 		r, _, err := client.Repositories.ListByOrg(context.Background(), org, &github.RepositoryListByOrgOptions{
 			ListOptions: github.ListOptions{
 				Page:    page,
@@ -64,10 +62,8 @@ func ListRepositoriesByOrg(org string) ([]*github.Repository, error) {
 			return nil, fmt.Errorf("ListRepositoriesByOrg returned error: \n%v", err)
 		}
 
-		// Add page to repos slice
 		repos = append(repos, r...)
 
-		// Break if out of pages, or flip page
 		if len(r) != perPage {
 			break
 		}
@@ -79,9 +75,45 @@ func ListRepositoriesByOrg(org string) ([]*github.Repository, error) {
 	return repos, nil
 }
 
+// ListRepositoriesByUser gets all repositories for a GitHub user
+func ListRepositoriesByUser(user string) ([]*github.Repository, error) {
+	var repos []*github.Repository
+	if x, found := cash.Get("ListRepositoriesByUser"); found {
+		var ok bool
+		repos, ok = x.([]*github.Repository)
+		if ok {
+			log.Debug("github client request was found in cache for ListRepositoriesByUser")
+			return repos, nil
+		}
+	}
+
+	var page, perPage int = 1, 100
+	for {
+		r, _, err := client.Repositories.ListByUser(context.Background(), user, &github.RepositoryListByUserOptions{
+			ListOptions: github.ListOptions{
+				Page:    page,
+				PerPage: perPage,
+			},
+		})
+		if err != nil {
+			return nil, fmt.Errorf("ListRepositoriesByUser returned error: \n%v", err)
+		}
+
+		repos = append(repos, r...)
+
+		if len(r) != perPage {
+			break
+		}
+		page++
+	}
+
+	cash.Set("ListRepositoriesByUser", repos, cache.DefaultExpiration)
+
+	return repos, nil
+}
+
 // ListRepositoryWorkflows gets all workflows for a GitHub repository
 func ListRepositoryWorkflows(owner, repo string) ([]*github.Workflow, error) {
-	// Chech cache
 	var workflows []*github.Workflow
 	if x, found := cash.Get(fmt.Sprintf("ListRepositoryWorkflows_%s_%s", owner, repo)); found {
 		var ok bool
@@ -94,7 +126,6 @@ func ListRepositoryWorkflows(owner, repo string) ([]*github.Workflow, error) {
 
 	var page, perPage int = 1, 100
 	for {
-		// Get page of organization repos
 		r, _, err := client.Actions.ListWorkflows(context.Background(), owner, repo, &github.ListOptions{
 			Page:    page,
 			PerPage: perPage,
@@ -103,10 +134,8 @@ func ListRepositoryWorkflows(owner, repo string) ([]*github.Workflow, error) {
 			return nil, fmt.Errorf("ListRepositoryWorkflows returned error: \n%v", err)
 		}
 
-		// Add page to repos slice
 		workflows = append(workflows, r.Workflows...)
 
-		// Break if out of pages, or flip page
 		if len(r.Workflows) != perPage {
 			break
 		}
