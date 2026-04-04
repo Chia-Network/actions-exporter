@@ -9,16 +9,16 @@ import (
 
 // Collector contains all prometheus metric Descs
 type Collector struct {
-	orgWorkflowState *prometheus.Desc
-	rateLimitLimit   *prometheus.Desc
-	rateLimitUsed    *prometheus.Desc
+	workflowState  *prometheus.Desc
+	rateLimitLimit *prometheus.Desc
+	rateLimitUsed  *prometheus.Desc
 }
 
 // NewCollector constructor function for Collector
 func NewCollector() *Collector {
 	return &Collector{
-		orgWorkflowState: prometheus.NewDesc("github_organization_workflow_state",
-			"Shows non-active workflow state for workflows in a GitHub organization.",
+		workflowState: prometheus.NewDesc("github_workflow_state",
+			"Shows non-active workflow state for workflows belonging to a GitHub user or organization.",
 			[]string{"owner", "repository", "workflow", "state"}, nil,
 		),
 		rateLimitLimit: prometheus.NewDesc("github_rate_limit_limit",
@@ -34,17 +34,17 @@ func NewCollector() *Collector {
 
 // Describe contains all the prometheus descriptors for this metric collector
 func (c *Collector) Describe(ch chan<- *prometheus.Desc) {
-	ch <- c.orgWorkflowState
+	ch <- c.workflowState
 	ch <- c.rateLimitLimit
 	ch <- c.rateLimitUsed
 }
 
 // Collect instructs the prometheus client how to collect the metrics for each descriptor
 func (c *Collector) Collect(ch chan<- prometheus.Metric) {
-	t := getOrgWorkflowState()
-	log.Debugf("found %d github_organization_workflow_state records", len(t))
+	t := getWorkflowState()
+	log.Debugf("found %d github_workflow_state records", len(t))
 	for _, r := range t {
-		ch <- prometheus.MustNewConstMetric(c.orgWorkflowState, prometheus.GaugeValue, 1.0, r.RepoOwner, r.RepoName, r.WorkflowName, r.WorkflowState)
+		ch <- prometheus.MustNewConstMetric(c.workflowState, prometheus.GaugeValue, 1.0, r.RepoOwner, r.RepoName, r.WorkflowName, r.WorkflowState)
 	}
 
 	limits, err := gh.GetRateLimits()
