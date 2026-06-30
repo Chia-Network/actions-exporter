@@ -29,7 +29,7 @@ jobs:
     container:
       image: registry.gitlab.com/cmmarslender/kubectl-helm:v4
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Vault Login
         uses: Chia-Network/actions/vault/login@main
